@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>経候値（けいこうち）｜ケッペンの気候区分版 経県値</title>
+  <meta name="description" content="ケッペンの気候区分30種類それぞれを「住んだ・泊まった・訪れた・降り立った・通過した」で塗り分けて、あなたの気候経験値（経候値）を算出します。" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <span style="background:#0078ff"></span><span style="background:#ff0000"></span><span style="background:#64ff50"></span><span style="background:#37c8ff"></span><span style="background:#b2b2b2"></span>
+      </div>
+      <div>
+        <h1>経候値 <small>けいこうち</small></h1>
+        <p class="tagline">ケッペンの気候区分版「経県値」— あなたは地球の気候をどれだけ体験した？</p>
+      </div>
+    </div>
+    <div class="header-score" id="headerScore" title="あなたの経候値">
+      <span class="hs-label">経候値</span>
+      <span class="hs-value" id="headerScoreValue">0</span>
+      <span class="hs-max">/ 150</span>
+    </div>
+  </header>
+
+  <div class="shared-banner" id="sharedBanner" hidden>
+    <span>👀 共有された経候値を表示しています（編集できません）</span>
+    <div class="sb-actions">
+      <button class="btn btn-sm btn-light" id="adoptShared">このデータを自分の記録にする</button>
+      <button class="btn btn-sm btn-ghost-light" id="closeShared">自分の記録に戻る</button>
+    </div>
+  </div>
+
+  <main class="layout">
+    <!-- 地図 -->
+    <section class="map-section card">
+      <div class="map-toolbar">
+        <div class="seg" role="tablist" aria-label="地図の表示モード">
+          <button class="seg-btn active" data-mode="level" role="tab">経候値マップ</button>
+          <button class="seg-btn" data-mode="visited" role="tab" title="住んだ・泊まった・訪れた（Lv3以上）気候のみ表示">訪れた気候マップ</button>
+          <button class="seg-btn" data-mode="place" role="tab">国・地域マップ</button>
+          <button class="seg-btn" data-mode="koppen" role="tab">気候区分マップ</button>
+        </div>
+        <div class="views">
+          <button class="chip-btn" data-view="world">世界</button>
+          <button class="chip-btn" data-view="japan">日本</button>
+          <button class="chip-btn" data-view="europe">ヨーロッパ</button>
+          <button class="chip-btn" data-view="namerica">北米</button>
+          <button class="chip-btn" data-view="asia">アジア</button>
+          <button class="chip-btn" id="locateBtn" title="現在地の気候区分を調べる">📍 現在地</button>
+        </div>
+      </div>
+
+      <div class="map-wrap" id="mapWrap">
+        <canvas id="mapCanvas" aria-label="ケッペン気候区分の世界地図"></canvas>
+        <div class="map-zoom">
+          <button id="zoomIn" aria-label="拡大">＋</button>
+          <button id="zoomOut" aria-label="縮小">－</button>
+        </div>
+        <div class="map-tooltip" id="tooltip" hidden></div>
+        <div class="map-loading" id="mapLoading">地図データを読み込み中…</div>
+      </div>
+      <p class="map-hint">地図をクリック（タップ）するとその地点の気候区分を選べます（国・地域マップでは国・地域を選択）。ドラッグで移動、ホイール／ピンチで拡大縮小。</p>
+
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <!-- サイドパネル -->
+    <aside class="side">
+      <section class="card score-card">
+        <div class="score-main">
+          <div>
+            <div class="score-label">あなたの経候値</div>
+            <div class="score-value"><span id="scoreValue">0</span><span class="score-max">/150</span></div>
+          </div>
+          <div class="rank">
+            <div class="rank-label">称号</div>
+            <div class="rank-title" id="rankTitle">—</div>
+          </div>
+        </div>
+        <div class="score-bar" id="scoreBar"></div>
+        <div class="level-counts" id="levelCounts"></div>
+        <div class="stats">
+          <div class="stat"><span class="stat-num" id="statVisited">0</span><span class="stat-label">実際に訪れた気候<br>（住む・泊まる・訪れる）</span></div>
+          <div class="stat"><span class="stat-num" id="statTypes">0</span><span class="stat-label">体験した気候<br>（通過・乗継含む30種中）</span></div>
+          <div class="stat"><span class="stat-num" id="statLand">0%</span><span class="stat-label">訪れた気候が<br>占める陸地面積</span></div>
+          <div class="stat"><span class="stat-num" id="statPlaces">0</span><span class="stat-label">記録した<br>国・地域</span></div>
+        </div>
+        <div class="share-actions">
+          <button class="btn btn-primary" id="timelineOpen">📁 タイムライン取込</button>
+          <button class="btn" id="shareX">𝕏 でシェア</button>
+          <button class="btn" id="saveImage">🖼 画像で保存</button>
+          <button class="btn" id="copyUrl">🔗 URLをコピー</button>
+          <button class="btn btn-danger-ghost" id="resetAll">リセット</button>
+        </div>
+      </section>
+
+      <section class="card list-card">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="climate" role="tab">気候区分から選ぶ</button>
+          <button class="tab" data-tab="place" role="tab">国・地域から選ぶ <span class="tab-badge" id="placeCount"></span></button>
+        </div>
+
+        <div class="tab-panel" id="tabClimate">
+          <div class="list-head">
+            <p class="list-desc">気候区分ごとに、一番濃い体験を選んでください。</p>
+            <div class="level-key" id="levelKey"></div>
+          </div>
+
+          <!-- 実際に訪れた気候（住む・泊まる・訪れた）のハイライト一覧 -->
+          <div class="visited-climates-box" id="visitedClimatesBox">
+            <div class="vcb-head">
+              <span class="vcb-title">🏃 実際に訪れた気候 <small>（住む・泊まる・訪れる）</small></span>
+              <span class="vcb-count" id="vcbCount">0 / 30</span>
+            </div>
+            <div class="vcb-list" id="vcbList"></div>
+          </div>
+
+          <div class="climate-filters">
+            <span class="cf-label">絞り込み：</span>
+            <button class="chip-btn cf-btn active" data-filter="all">すべて (30)</button>
+            <button class="chip-btn cf-btn" data-filter="visited">訪れた気候のみ (Lv3+)</button>
+            <button class="chip-btn cf-btn" data-filter="any">体験あり (Lv1+)</button>
+            <button class="chip-btn cf-btn" data-filter="unvisited">未踏のみ</button>
+          </div>
+
+          <div id="climateList"></div>
+        </div>
+
+        <div class="tab-panel" id="tabPlace" hidden>
+          <p class="list-desc">行ったことのある国・地域（日本は都道府県単位でも可）を選ぶと、その土地の気候区分にレベルが反映されます。名前をタップすると、反映する気候区分を細かく選べます。</p>
+          
+          <div class="search-box">
+            <span aria-hidden="true">🔍</span>
+            <input type="search" id="placeSearch" placeholder="国・地域・都道府県を検索（例：たい、France、北海道）" autocomplete="off" />
+          </div>
+
+          <!-- 経県値スタイルの記録済み場所一覧（住んだ・泊まった・訪れた・降り立った・通過した） -->
+          <div class="visited-places-box">
+            <div class="vpb-head">
+              <span class="vpb-title">📍 訪問・記録済みの場所</span>
+              <span class="vpb-count" id="vpbCount">0 件</span>
+            </div>
+            <div class="visited" id="placeVisited"></div>
+          </div>
+
+          <div class="place-filters">
+            <span class="pf-label">絞り込み：</span>
+            <button class="chip-btn pf-btn active" data-pfilter="all">すべて</button>
+            <button class="chip-btn pf-btn" data-pfilter="visited">訪れた場所のみ (Lv3+)</button>
+            <button class="chip-btn pf-btn" data-pfilter="any">記録済み (Lv1+)</button>
+            <button class="chip-btn pf-btn" data-pfilter="unvisited">未踏のみ</button>
+          </div>
+
+          <div id="placeList"></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <section class="card about">
+    <h2>経候値とは？</h2>
+    <p>
+      都道府県ごとの訪問経験を点数化する「経県値」を、<strong>ケッペン＝ガイガーの気候区分（30種類）</strong>に置き換えた遊びです。
+      各気候区分について一番濃い体験を選ぶと、点数が加算されます（満点 150 点）。
+    </p>
+    <div class="about-levels" id="aboutLevels"></div>
+    <p class="note">
+      ※ 地図データ：Köppen-Geiger climate classification 1986–2010（0.5°グリッド, Kottek et al. 2006; Rubel et al. 2017）。As（夏季少雨のサバナ気候）は Aw に統合しています。
+      国境：Natural Earth（1:50m）、都道府県境：dataofjapan/land。国・地域の気候構成は境界内をサンプリングした概算です。
+      代表地点はおおよその例で、地図の解像度の都合で実際の区分と異なる場合があります。記録はこのブラウザ（localStorage）にのみ保存されます。
+    </p>
+  </section>
+
+  <footer class="site-footer">経候値 — Köppen Climate Experience Map</footer>
+
+  <!-- 気候区分の選択ポップアップ -->
+  <div class="popup-backdrop" id="popupBackdrop" hidden></div>
+  <div class="popup" id="popup" role="dialog" aria-modal="true" hidden>
+    <button class="popup-close" id="popupClose" aria-label="閉じる">×</button>
+    <div class="popup-head">
+      <span class="popup-code" id="popupCode">Cfa</span>
+      <div>
+        <div class="popup-group" id="popupGroup"></div>
+        <div class="popup-name" id="popupName"></div>
+      </div>
+    </div>
+    <p class="popup-desc" id="popupDesc"></p>
+    <p class="popup-ex" id="popupEx"></p>
+    <p class="popup-meta" id="popupMeta"></p>
+    <div class="popup-place" id="popupPlace" hidden></div>
+    <div class="popup-levels" id="popupLevels"></div>
+  </div>
+
+  <!-- 国・地域の選択ポップアップ -->
+  <div class="popup popup-place-dlg" id="placePopup" role="dialog" aria-modal="true" hidden>
+    <button class="popup-close" id="placePopupClose" aria-label="閉じる">×</button>
+    <div class="pp-group" id="ppGroup"></div>
+    <div class="popup-name" id="ppName"></div>
+    <div class="pp-en" id="ppEn"></div>
+    <div class="popup-levels compact" id="ppLevels"></div>
+    <div class="pp-sub">
+      <span>反映する気候区分</span>
+      <span class="pp-tools">
+        <button class="chip-btn" id="ppMain">主な気候のみ</button>
+        <button class="chip-btn" id="ppAll">すべて</button>
+        <button class="chip-btn" id="ppNone">なし</button>
+      </span>
+    </div>
+    <p class="pp-hint" id="ppHint">チェックした気候区分に、選んだレベルが反映されます。％はその国・地域の面積に占める割合です。</p>
+    <div class="pp-climates" id="ppClimates"></div>
+    <div class="pp-actions">
+      <button class="btn btn-primary" id="ppDone">OK</button>
+    </div>
+  </div>
+
+  <!-- タイムライン取込モーダル -->
+  <div class="popup popup-timeline" id="timelineModal" role="dialog" aria-modal="true" hidden>
+    <button class="popup-close" id="timelineClose" aria-label="閉じる">×</button>
+    <div class="tl-head">
+      <div class="tl-title">📁 Googleマップ タイムライン取込</div>
+      <p class="tl-sub">Googleマップのタイムラインからエクスポートした JSON ファイルを読み込み、滞在・宿泊・通過した気候区分や国・地域を自動判定します。</p>
+    </div>
+
+    <!-- ファイル選択・ドロップ枠 -->
+    <div class="tl-drop" id="tlDrop">
+      <input type="file" id="tlFile" accept=".json,application/json" multiple hidden />
+      <div class="tl-drop-icon">📥</div>
+      <div class="tl-drop-text">ここに <b>JSON ファイル</b> をドラッグ＆ドロップ</div>
+      <div class="tl-drop-hint">または <button type="button" class="btn btn-sm btn-light" id="tlPickBtn">ファイルを選択</button>（複数選択可）</div>
+      <div class="tl-drop-meta">対応形式：Timeline.json（Android）/ location-history.json（iPhone）/ Records.json / Takeout月別</div>
+    </div>
+
+    <!-- 取り込み手順アコーディオン -->
+    <details class="tl-guide">
+      <summary>💡 スマホからのJSONエクスポート方法</summary>
+      <div class="tl-guide-body">
+        <p><b>【Android】</b> Googleマップアプリ → 右上アイコン →「設定」→「コンテンツのプライバシー」→「タイムラインのデータをエクスポート」で保存された <code>Timeline.json</code> を選択</p>
+        <p><b>【iPhone】</b> Googleマップアプリ → 右上アイコン →「タイムライン」→ 右上「…」→「設定とプライバシー」→「タイムラインのデータをエクスポート」で保存された <code>.json</code> を選択</p>
+        <p><b>【Google Takeout】</b> PCから「Googleデータエクスポート」で「ロケーション履歴（タイムライン）」をエクスポートした月別JSONまたは <code>Records.json</code></p>
+        <p class="tl-security-note">🔒 <b>プライバシー保護：</b> ファイルはすべてお使いのブラウザ内でのみ安全に解析されます。位置情報データがサーバーや外部へ送信されることは一切ありません。</p>
+      </div>
+    </details>
+
+    <!-- 解析状況 / 結果プレビュー -->
+    <div class="tl-preview-wrap" id="tlPreviewWrap" hidden>
+      <div class="tl-summary card" id="tlSummary"></div>
+      
+      <div class="tl-options">
+        <label class="tl-opt-label">
+          <span>反映モード：</span>
+          <select id="tlMergeMode">
+            <option value="merge" selected>既存の記録とマージ（高いレベルを優先・推奨）</option>
+            <option value="replace">タイムラインのデータで上書き（手動記録をリセット）</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="tl-diff-sections">
+        <div class="tl-diff-col">
+          <div class="tl-diff-title">新たに判定された気候区分 (<span id="tlClimateCount">0</span>)</div>
+          <div class="tl-diff-list" id="tlClimateList"></div>
+        </div>
+        <div class="tl-diff-col">
+          <div class="tl-diff-title">新たに判定された国・地域 (<span id="tlPlaceCount">0</span>)</div>
+          <div class="tl-diff-list" id="tlPlaceList"></div>
+        </div>
+      </div>
+
+      <div class="tl-actions">
+        <button class="btn btn-ghost" id="tlCancel">キャンセル</button>
+        <button class="btn btn-primary" id="tlApply">この内容を記録に反映する</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="data.js"></script>
+  <script src="places.js"></script>
+  <script src="climates.js"></script>
+  <script src="timeline.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
