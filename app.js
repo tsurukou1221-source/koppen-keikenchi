@@ -473,21 +473,76 @@
     anim = requestAnimationFrame(step);
   }
 
-  /** 国・地域の範囲に地図を合わせる */
-  function flyToPlace(k) {
+  /** 気候区分の範囲に地図を合わせる（行ったことのある地域があればそこを優先ズーム） */
+  function flyToClimate(i) {
     if (!grid) return;
-    const m = new Uint8Array(NP); m[k] = 1; CHILDREN[k].forEach(c => { m[c] = 1; });
-    let r0 = Infinity, r1 = -1, c0 = Infinity, c1 = -1, n = 0;
-    const { w, h, owner } = grid;
-    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
-      const o = owner[r * w + c];
-      if (o !== NONE && m[o]) { n++; if (r < r0) r0 = r; if (r > r1) r1 = r; if (c < c0) c0 = c; if (c > c1) c1 = c; }
+    const { w, h, cells, owner } = grid;
+    const code = CLIMATES[i].code;
+
+    // 1. この気候にレベルが付いている「訪問済みの場所（国・州・県）」を探す
+    const visitedPlaces = [];
+    for (const [id, p] of Object.entries(curPlaces())) {
+      if (p.l > 0 && p.c.includes(code)) {
+        const k = PL_IDX[id];
+        if (k !== undefined) visitedPlaces.push(k);
+      }
     }
-    if (!n) return;
-    if (c1 - c0 > w / 2) return; // 日付変更線をまたぐ国（ロシアなど）は移動しない
-    const spanW = Math.max(c1 - c0 + 1, 16), spanH = Math.max(r1 - r0 + 1, 10);
-    const z = Math.min(vw / (spanW * 1.4), vh / (spanH * 1.4));
-    flyTo((c0 + c1 + 1) / 2, (r0 + r1 + 1) / 2, Math.max(cam.z * 0.5, Math.min(z, 24)));
+
+    if (visitedPlaces.length) {
+      // 訪問済み場所のなかで最もレベルが高い場所（または最初の場所）へズーム
+      visitedPlaces.sort((a, b) => curPlaceLv[b] - curPlaceLv[a]);
+      const targetPlace = visitedPlaces[0];
+
+      // targetPlace の中で、かつ気候区分が i であるセル群のバウンディングボックスを計算
+      const m = new Uint8Array(NP);
+      m[targetPlace] = 1;
+      CHILDREN[targetPlace].forEach(c => { m[c] = 1; });
+
+      let r0 = Infinity, r1 = -1, c0 = Infinity, c1 = -1, count = 0;
+      for (let r = 0; r < h; r++) {
+        for (let c = 0; c < w; c++) {
+          const idx = r * w + c;
+          if (cells[idx] === i && owner[idx] !== NONE && m[owner[idx]]) {
+            count++;
+            if (r < r0) r0 = r;
+            if (r > r1) r1 = r;
+            if (c < c0) c0 = c;
+            if (c > c1) c1 = c;
+          }
+        }
+      }
+
+      if (count > 0 && c1 - c0 <= w / 2) {
+        const spanW = Math.max(c1 - c0 + 1, 12), spanH = Math.max(r1 - r0 + 1, 8);
+        const z = Math.min(vw / (spanW * 1.5), vh / (spanH * 1.5));
+        flyTo((c0 + c1 + 1) / 2, (r0 + r1 + 1) / 2, Math.max(cam.z * 0.5, Math.min(z, 26)));
+        return;
+      }
+
+      // 気候セルが細かすぎる場合はその国・地域全体へズーム
+      flyToPlace(targetPlace);
+      return;
+    }
+
+    // 2. 訪問場所が未登録でも、ユーザーが手動でレベル3以上（訪れた/泊まった/住んだ）をつけている場合、
+    // 日本周辺に該当気候があれば日本を優先、なければその気候の代表的な分布域へズーム
+    let r0 = Infinity, r1 = -1, c0 = Infinity, c1 = -1, count = 0;
+    for (let r = 0; r < h; r++) {
+      for (let c = 0; c < w; c++) {
+        if (cells[r * w + c] === i) {
+          count++;
+          if (r < r0) r0 = r;
+          if (r > r1) r1 = r;
+          if (c < c0) c0 = c;
+          if (c > c1) c1 = c;
+        }
+      }
+    }
+    if (count > 0 && c1 - c0 <= w / 2) {
+      const spanW = Math.max(c1 - c0 + 1, 16), spanH = Math.max(r1 - r0 + 1, 10);
+      const z = Math.min(vw / (spanW * 1.3), vh / (spanH * 1.3));
+      flyTo((c0 + c1 + 1) / 2, (r0 + r1 + 1) / 2, Math.max(cam.z * 0.5, Math.min(z, 16)));
+    }
   }
 
   const VIEWS = {
@@ -671,6 +726,8 @@
     $('popup').hidden = false;
     showBackdrop(true);
     setHighlight({ t: 'climate', i });
+    // 地図クリック時（ownerIdx !== NONE）以外は、該当する訪問地（または分布域）へ自動ズーム
+    if (ownerIdx === NONE) flyToClimate(i);
   }
   function renderPopupLevels() {
     const cur = levels()[popupIndex];
@@ -832,7 +889,12 @@
 
     list.addEventListener('click', e => {
       const lb = e.target.closest('.lv-btn');
-      if (lb) { setLevel(Number(lb.dataset.i), Number(lb.dataset.v)); return; }
+      if (lb) {
+        const i = Number(lb.dataset.i);
+        setLevel(i, Number(lb.dataset.v));
+        flyToClimate(i);
+        return;
+      }
       const op = e.target.closest('[data-open]');
       if (op) openPopup(Number(op.dataset.open));
     });
