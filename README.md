@@ -12,7 +12,7 @@
 - 国・地域の名前をタップすると、その国の気候構成（面積％）が表示され、**反映する気候区分をチェックで選べます**（初期値は面積 25% 以上の主な気候）。
 - 検索はひらがな・カタカナ・英語に対応（例：`たい`、`France`、`北海道`）。
 - 気候区分のレベルは「直接選んだレベル」と「国・地域から反映されたレベル」の高いほうになります。
-- 地図の「国・地域マップ」では訪問済みの国・地域が塗られ、地図クリックで国・地域を選べます。
+- **抽出・絞り込み：** 「実際に訪れた気候（住む・泊まる・訪れた）」の一覧や、記録済み場所の抽出、地図の「訪れた気候マップ」への切り替えに対応。
 
 ## Googleマップ タイムライン JSON の自動取込機能 📁
 
@@ -37,6 +37,7 @@ Googleマップのタイムライン（ロケーション履歴）からエク�
 前提：Node.js（v18 以上）
 
 ```powershell
+# プロジェクトフォルダに移動
 cd koppen-keikenchi
 
 # アプリを起動 → ブラウザで http://localhost:8080/ を開く（Ctrl+C で停止）
@@ -44,51 +45,3 @@ npm start
 
 # ポートを変える場合
 node tools/serve.mjs 3000
-```
-
-`index.html` をダブルクリックで開いても動きますが、📍現在地ボタン・URLコピーは
-`http://localhost` で開いたときのみ確実に動作します。
-
-### データの再生成（通常は不要）
-
-`data.js` と `places.js` は生成済みです。作り直す場合のみ：
-
-```powershell
-npm run data           # すべて取得して作り直す
-npm run build:data     # 取得済みデータから data.js（気候グリッド）だけ作り直す
-npm run build:places   # 取得済みデータから places.js（国・地域）だけ作り直す
-```
-
-`places.js` は `data.js` を元に計算するため、`build:data` を実行したら `build:places` も実行してください。
-
-## ファイル構成
-
-| ファイル | 内容 |
-|---|---|
-| `index.html` | 画面 |
-| `style.css` | スタイル |
-| `app.js` | 地図描画・操作・得点計算・共有 |
-| `climates.js` | 気候区分の名前・説明・代表都市・配色、レベル、称号 |
-| `data.js` | 0.5° グリッドの気候区分データ（自動生成, 約 26KB） |
-| `places.js` | 国・地域／都道府県の気候構成と地図上の範囲（自動生成, 約 54KB） |
-| `tools/build-data.mjs` | `data.js` 生成スクリプト |
-| `tools/build-places.mjs` | `places.js` 生成スクリプト |
-| `tools/serve.mjs` | 依存なしのローカルサーバー |
-
-## 公開する場合
-
-`index.html` / `style.css` / `app.js` / `climates.js` / `data.js` / `places.js` の 6 ファイルを
-GitHub Pages・Netlify などの静的ホスティングに置くだけで動きます（`tools/` と `_pkg/` は不要）。
-
-## データ出典
-
-- 気候区分：Köppen-Geiger climate classification 1986–2010, 0.5°（npm `koppen-climate-lookup` 経由）
-  - Kottek, M. et al. (2006) World Map of the Köppen-Geiger climate classification updated. *Meteorol. Z.* 15, 259–263.
-  - Rubel, F. et al. (2017) The climate of the European Alps: Shift of very high resolution Köppen-Geiger climate zones 1800–2100. *Meteorol. Z.*
-- 国境：Natural Earth 1:50m Admin 0 Countries（パブリックドメイン）
-- 都道府県境：dataofjapan/land
-- 州・省境：Natural Earth 1:50m Admin 1
-
-※ As は Aw に統合。Cwc はこのデータセットに分布がありません（リストからは選択可）。
-※ 国・地域の範囲は Natural Earth の定義に従うため、フランスには仏領ギアナなど海外県、アメリカにはアラスカ・ハワイが含まれます（反映する気候はチェックで調整できます）。
-※ ツバル・ピトケアン諸島など一部の小さな島は 0.5° グリッドに陸地がないため気候データがありません。
