@@ -37,7 +37,7 @@ Googleマップのタイムライン（ロケーション履歴）からエク�
 前提：Node.js（v18 以上）
 
 ```powershell
-cd C:\Users\kosei\.gemini\antigravity\scratch\koppen-keikenchi
+cd koppen-keikenchi
 
 # アプリを起動 → ブラウザで http://localhost:8080/ を開く（Ctrl+C で停止）
 npm start
